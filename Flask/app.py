@@ -1,0 +1,150 @@
+import os
+import sys
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from back.Library.Authentification import Authentification
+from back.Library.motdepasse import motdepassesecu
+from back.Library.token import generate_token, verify_token
+from functools import wraps
+from back.Library.leaderboard import leaderboard_bp
+import re
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
+app = Flask(__name__)
+CORS(app)
+
+app.register_blueprint(leaderboard_bp)
+
+@app.route("/")
+def home():
+    return "API Projet SLAM opérationnelle"
+
+def email_valide(email):
+    pattern = r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"
+    return re.match(pattern, email)
+
+@app.route("/register", methods=['POST', 'OPTIONS'])
+def register():
+    if request.method == "OPTIONS":
+        return "", 200
+
+    data = request.get_json()
+    print("Data reçue:", data)
+
+    if not data:
+        return jsonify({"error": "JSON invalide"}), 400
+
+    name = data.get("name")
+    email = data.get("email")
+    password = data.get("password")
+
+    if not name or not email or not password:
+        return jsonify({"error": "Champs manquants"}), 400
+
+    if not email_valide(email):
+        return jsonify({"error": "Email invalide (ex: test@hotmail.fr)"}), 400
+
+    try:
+        if not motdepassesecu(password):
+          return jsonify({"error": "Mot de passe invalide"}), 400
+    except BaseException as ex:
+            return jsonify({"error": str(ex)}), 400
+
+    success = Authentification.register(name, email, password)
+    print("Utilisateur ajouté:", name)
+
+    if not success:
+        return jsonify({"error": "Username ou email déjà utilisé"}), 400
+
+    return jsonify({"message": "Inscription réussie"}), 201
+
+
+@app.route("/login", methods=['POST', 'OPTIONS'])
+def login():
+
+    if request.method == "OPTIONS":
+        return "", 200
+
+    data = request.get_json()
+    print("LOGIN DATE:", data)
+
+    if not data:
+        return jsonify({"error": "JSON invalide"}), 400
+
+    name = data.get("name")
+    password = data.get("password")
+
+    if not name or not password:
+        return jsonify({"error": "Champs manquants"}), 400
+
+    if Authentification.login(name, password):
+        token = generate_token(name)
+        if isinstance(token, bytes):
+            token = token.decode("utf-8")
+        return jsonify({
+            "message": "Connexion réussie",
+            "token": token
+        }), 200
+    else:
+        return jsonify({"error": "Identifiants invalides"}), 401
+
+def token_required(f):
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+
+        auth_header = request.headers.get("Authorization")
+
+        if not auth_header:
+            return jsonify({"error": "Token manquant"}), 401
+
+        try:
+            token = auth_header.split(" ")[1]
+        except IndexError:
+            return jsonify({"error": "Token invalide"}), 401
+
+        payload = verify_token(token)
+
+        if not payload:
+            return jsonify({"error": "Token expiré ou invalide"}), 401
+
+        if Authentification.token_is_blacklisted(token):
+            return jsonify({"error": "Token révoqué"}), 401
+
+        return f(*args, **kwargs)
+
+    return decorated
+
+@app.route("/profile")
+@token_required
+def profile():
+
+    return jsonify({
+            "message": "Route protégée accessible"
+    })
+
+@app.route("/logout", methods=["POST"])
+@token_required
+def logout():
+
+    auth_header = request.headers.get("Authorization")
+    token = auth_header.split(" ")[1]
+
+    Authentification.logout(token)
+
+    return jsonify({"message": "Déconnexion réussie"}), 200
+
+@app.route("/add_points", methods=["POST"])
+def add_points():
+
+    data = request.get_json()
+
+    name = data.get("name")
+    points = data.get("points")
+
+    Authentification.add_points(name, points)
+
+    return jsonify({"message": "Points ajoutés"})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
