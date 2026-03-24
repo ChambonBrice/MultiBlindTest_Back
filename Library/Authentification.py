@@ -2,6 +2,7 @@ import sqlite3
 import bcrypt
 import os
 import base64
+import uuid
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 DB_PATH = os.path.join(BASE_DIR, "bdd")
@@ -10,6 +11,18 @@ DB_NAME = os.path.join(DB_PATH, "MBT.db")
 token_blacklist = set()
 
 class Authentification:
+
+    @staticmethod
+    def get_user_id(name):
+        conn = sqlite3.connect(DB_NAME)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM Users WHERE name = ?", (name,))
+        user = cur.fetchone()
+        conn.close()
+        if user:
+            return user["id"]
+        return None
 
     @staticmethod
     def hash_password(password):
@@ -22,20 +35,29 @@ class Authentification:
     def register(name, email, password):
 
         hashed_password = Authentification.hash_password(password)
+        user_uuid = str(uuid.uuid4())
 
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
 
         try:
             cursor.execute("""
-                INSERT INTO Users (archive, pseudonyme, nom, email, age, pwd)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (0, name, name, email, 18, hashed_password))
+                           INSERT INTO Users (uuid, archive, name, nom, email, age, pwd)
+                           VALUES (?, ?, ?, ?, ?, ?, ?)
+                           """, (user_uuid, 0, name, name, email, 18, hashed_password))
+
+            user_id = cursor.lastrowid
+
+            # 🔥 Ajout automatique des tables liées
+            cursor.execute("INSERT INTO Profils (XP, Level, Status, Stats, UserID) VALUES (0,1,'New',0,?)", (user_id,))
+            cursor.execute("INSERT INTO Rank (UserID, Points) VALUES (?, 0)", (user_id,))
+            cursor.execute("INSERT INTO Settings (MainVolume, VolumeMusic, VolumeSFX, Language, UserID) VALUES (100,100,100,'FR',?)",(user_id,))
 
             conn.commit()
             return True
 
-        except sqlite3.IntegrityError:
+        except sqlite3.IntegrityError as e:
+            print(e)
             return False
 
         finally:
@@ -47,7 +69,7 @@ class Authentification:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
 
-        cursor.execute("""SELECT pwd FROM Users WHERE pseudonyme = ?
+        cursor.execute("""SELECT pwd FROM Users WHERE name = ?
             """,(name,))
         result = cursor.fetchone()
 
@@ -78,70 +100,61 @@ class Authentification:
 
     @staticmethod
     def get_global_leaderboard(limit):
-
         conn = Authentification.get_connection()
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
         cursor.execute("""
-                       SELECT name, avatar, level, points, title
-                       FROM users
-                       ORDER BY points DESC LIMIT ?
+                       SELECT u.name, p.Level, r.Points
+                       FROM Users u
+                                JOIN Profils p ON u.id = p.UserID
+                                JOIN Rank r ON u.id = r.UserID
+                       ORDER BY r.Points DESC LIMIT ?
                        """, (limit,))
 
         rows = cursor.fetchall()
+        conn.close()
 
         users = []
         for row in rows:
             users.append({
-                "name": row[0],
-                "avatar": row[1],
-                "level": row[2],
-                "points": row[3],
-                "title": row[4]
+                "name": row["name"],
+                "level": row["Level"],
+                "points": row["Points"]
             })
 
-        conn.close()
         return users
 
     @staticmethod
-    def get_local_leaderboard(country, limit):
-
+    def get_local_leaderboard(country, limit=100):
         conn = Authentification.get_connection()
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
         cursor.execute("""
-                       SELECT name, avatar, level, points, title
-                       FROM users
-                       WHERE country = ?
-                       ORDER BY points DESC LIMIT ?
+                       SELECT u.name, r.Points
+                       FROM Users u
+                                JOIN Rank r ON u.id = r.UserID
+                       WHERE u.country = ?
+                       ORDER BY r.Points DESC LIMIT ?
                        """, (country, limit))
 
         rows = cursor.fetchall()
-
-        users = []
-        for row in rows:
-            users.append({
-                "name": row[0],
-                "avatar": row[1],
-                "level": row[2],
-                "points": row[3],
-                "title": row[4]
-            })
-
         conn.close()
-        return users
+        return [{"name": row["name"], "points": row["Points"]} for row in rows]
 
     @staticmethod
     def add_points(name, points):
-
-        conn = sqlite3.connect("DB_NAME")
+        conn = Authentification.get_connection()
         cursor = conn.cursor()
 
-        cursor.execute("""
-                       UPDATE users
-                       SET points = points + ?
-                       WHERE pseudonyme = ?
-                       """, (points, name))
+        cursor.execute("SELECT id FROM Users WHERE name = ?", (name,))
+        user = cursor.fetchone()
+        if not user:
+            conn.close()
+            return False
 
+        cursor.execute("UPDATE Rank SET Points = Points + ? WHERE UserID = ?", (points, user[0]))
         conn.commit()
         conn.close()
+        return True
