@@ -20,6 +20,10 @@ from MultiBlindTest_Back.Library.victory import Victory
 from MultiBlindTest_Back.controllers.tracks_controller import tracks_bp
 from MultiBlindTest_Back.controllers.clips_controller import clips_bp
 from MultiBlindTest_Back.Flask.auth_utils import token_required
+from MultiBlindTest_Back.Library.subscription import SubscriptionService
+from MultiBlindTest_Back.controllers.rooms_controller import rooms_bp
+from MultiBlindTest_Back.controllers.rounds_controller import rounds_bp
+from bdd.MBT import MBT
 
 app = Flask(__name__)
 CORS(app)
@@ -27,6 +31,8 @@ CORS(app)
 app.register_blueprint(leaderboard_bp)
 app.register_blueprint(tracks_bp)
 app.register_blueprint(clips_bp)
+app.register_blueprint(rooms_bp)
+app.register_blueprint(rounds_bp)
 
 def get_db():
     if "db" not in g:
@@ -44,6 +50,10 @@ def close_db(error):
 @app.before_request
 def attach_db():
     get_db()
+
+def init_database():
+    mbt_db = MBT()
+    mbt_db.creer_table()
 
 def email_valide(email):
     pattern = r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"
@@ -161,6 +171,14 @@ def play(level_id):
 def end_game():
     data = request.get_json()
 
+    if not data:
+        return jsonify({"error": "JSON invalide"}), 400
+
+    required_fields = ["nb_music", "time_left", "lives_remaining", "campaign_id"]
+    for field in required_fields:
+        if field not in data or data[field] is None:
+            return jsonify({"error": f"Champ manquant : {field}"}), 400
+
     db = get_db()
 
     result = Victory.calcul_score(
@@ -173,8 +191,173 @@ def end_game():
     )
 
     Victory.add_xp(db, request.user_id, 250)
-    return jsonify(result)
+    db.commit()
 
+    return jsonify(result), 200
+
+@app.route("/profile", methods=["GET"])
+@token_required
+def get_profile():
+    db = get_db()
+    cursor = db.cursor()
+
+    cursor.execute("""
+        SELECT id, uuid, name, nom, email, age
+        FROM Users
+        WHERE id = ? AND archive = 0
+    """, (request.user_id,))
+
+    row = cursor.fetchone()
+
+    if not row:
+        return jsonify({"error": "Profil introuvable"}), 404
+
+    return jsonify({
+        "id": row["id"],
+        "uuid": row["uuid"],
+        "name": row["name"],
+        "nom": row["nom"],
+        "email": row["email"],
+        "age": row["age"]
+    }), 200
+
+@app.route("/profile", methods=["PATCH"])
+@token_required
+def update_profile():
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "JSON invalide"}), 400
+
+    db = get_db()
+    cursor = db.cursor()
+
+    allowed_fields = {
+        "name": "name",
+        "nom": "nom",
+        "email": "email",
+        "age": "age"
+    }
+
+    updates = []
+    values = []
+
+    for key, db_field in allowed_fields.items():
+        if key in data:
+            if key == "email" and not email_valide(data["email"]):
+                return jsonify({"error": "Email invalide"}), 400
+
+            updates.append(f"{db_field} = ?")
+            values.append(data[key])
+
+    if not updates:
+        return jsonify({"error": "Aucune donnée autorisée à mettre à jour"}), 400
+
+    try:
+        values.append(request.user_id)
+        cursor.execute(
+            f"UPDATE Users SET {', '.join(updates)} WHERE id = ? AND archive = 0",
+            values
+        )
+        db.commit()
+
+        return jsonify({"message": "Profil mis à jour avec succès"}), 200
+
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "Nom ou email déjà utilisé"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/settings", methods=["GET"])
+@token_required
+def get_settings():
+    db = get_db()
+    cursor = db.cursor()
+
+    cursor.execute("""
+        SELECT MainVolume, VolumeMusic, VolumeSFX, Language
+        FROM Settings
+        WHERE UserID = ?
+    """, (request.user_id,))
+
+    row = cursor.fetchone()
+
+    if not row:
+        return jsonify({"error": "Settings introuvables"}), 404
+
+    return jsonify({
+        "main_volume": row["MainVolume"],
+        "volume_music": row["VolumeMusic"],
+        "volume_sfx": row["VolumeSFX"],
+        "language": row["Language"]
+    }), 200
+
+@app.route("/settings", methods=["PATCH"])
+@token_required
+def update_settings():
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "JSON invalide"}), 400
+
+    db = get_db()
+    cursor = db.cursor()
+
+    allowed_fields = {
+        "main_volume": "MainVolume",
+        "volume_music": "VolumeMusic",
+        "volume_sfx": "VolumeSFX",
+        "language": "Language"
+    }
+
+    updates = []
+    values = []
+
+    for key, db_field in allowed_fields.items():
+        if key in data:
+            updates.append(f"{db_field} = ?")
+            values.append(data[key])
+
+    if not updates:
+        return jsonify({"error": "Aucune donnée autorisée à mettre à jour"}), 400
+
+    try:
+        values.append(request.user_id)
+        cursor.execute(
+            f"UPDATE Settings SET {', '.join(updates)} WHERE UserID = ?",
+            values
+        )
+        db.commit()
+
+        return jsonify({"message": "Settings mises à jour avec succès"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/subscription", methods=["GET"])
+@token_required
+def get_subscription():
+    subscription = SubscriptionService.get_user_subscription(request.user_id)
+
+    if not subscription:
+        return jsonify({
+            "has_subscription": False,
+            "plan": "free",
+            "status": "none"
+        }), 200
+
+    is_active = SubscriptionService.has_active_subscription(request.user_id)
+
+    return jsonify({
+        "has_subscription": is_active,
+        "plan": subscription["plan"],
+        "status": subscription["status"],
+        "start_date": subscription["start_date"],
+        "end_date": subscription["end_date"],
+        "auto_renew": bool(subscription["auto_renew"]),
+        "provider": subscription["provider"]
+    }), 200
 
 if __name__ == "__main__":
+    init_database()
     app.run(host="0.0.0.0", port=5000, debug=True)
