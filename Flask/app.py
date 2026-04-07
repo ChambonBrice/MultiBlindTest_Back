@@ -17,6 +17,7 @@ from MultiBlindTest_Back.Library.leaderboard import leaderboard_bp
 from MultiBlindTest_Back.Library.campagne import Campagne
 from MultiBlindTest_Back.Library.level import Level
 from MultiBlindTest_Back.Library.victory import Victory
+from MultiBlindTest_Back.Library.settings import SettingsService
 from MultiBlindTest_Back.controllers.tracks_controller import tracks_bp
 from MultiBlindTest_Back.controllers.clips_controller import clips_bp
 from MultiBlindTest_Back.Flask.auth_utils import token_required
@@ -133,6 +134,34 @@ def logout():
 
     Authentification.logout(token)
     return jsonify({"message": "Déconnexion réussie"}), 200
+
+
+
+
+@app.route("/settings", methods=["GET"])
+@token_required
+def get_settings():
+    settings = SettingsService.get_settings(request.user_id)
+    return jsonify(settings), 200
+
+
+@app.route("/settings", methods=["PUT", "OPTIONS"])
+@token_required
+def update_settings():
+    if request.method == "OPTIONS":
+        return "", 200
+
+    data = request.get_json()
+
+    try:
+        settings = SettingsService.update_settings(request.user_id, data)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    return jsonify({
+        "message": "Paramètres mis à jour avec succès",
+        "settings": settings
+    }), 200
 
 
 @app.route("/levels", methods=["GET"])
