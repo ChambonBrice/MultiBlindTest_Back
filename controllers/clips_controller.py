@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, g
 from MultiBlindTest_Back.Library.clips import Clip
 from MultiBlindTest_Back.Library.tracks import Track
-from MultiBlindTest_Back.Library.audio_service import AudioService
+from MultiBlindTest_Back.services.audio_service import AudioService
 from MultiBlindTest_Back.Flask.auth_utils import token_required
 
 clips_bp = Blueprint("clips", __name__, url_prefix="/clips")
