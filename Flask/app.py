@@ -17,21 +17,14 @@ from MultiBlindTest_Back.Library.leaderboard import leaderboard_bp
 from MultiBlindTest_Back.Library.campagne import Campagne
 from MultiBlindTest_Back.Library.level import Level
 from MultiBlindTest_Back.Library.victory import Victory
-<<<<<<< HEAD
+from MultiBlindTest_Back.Library.settings import SettingsService
+from MultiBlindTest_Back.Library.level_creator import LevelCreatorService
+from MultiBlindTest_Back.Library.subscription import SubscriptionService
 from MultiBlindTest_Back.controllers.tracks_controller import tracks_bp
 from MultiBlindTest_Back.controllers.clips_controller import clips_bp
-from MultiBlindTest_Back.Flask.auth_utils import token_required
-from MultiBlindTest_Back.Library.subscription import SubscriptionService
 from MultiBlindTest_Back.controllers.rooms_controller import rooms_bp
 from MultiBlindTest_Back.controllers.rounds_controller import rounds_bp
-from bdd.MBT import MBT
-=======
-from MultiBlindTest_Back.Library.settings import SettingsService
-from MultiBlindTest_Back.controllers.tracks_controller import tracks_bp
-from MultiBlindTest_Back.controllers.clips_controller import clips_bp
-from MultiBlindTest_Back.Library.level_creator import LevelCreatorService
 from MultiBlindTest_Back.Flask.auth_utils import token_required
->>>>>>> 5c60396f91d151ce1565d8305ec5e09e4ee4ab23
 
 app = Flask(__name__)
 CORS(app)
@@ -39,11 +32,9 @@ CORS(app)
 app.register_blueprint(leaderboard_bp)
 app.register_blueprint(tracks_bp)
 app.register_blueprint(clips_bp)
-<<<<<<< HEAD
 app.register_blueprint(rooms_bp)
 app.register_blueprint(rounds_bp)
-=======
->>>>>>> 5c60396f91d151ce1565d8305ec5e09e4ee4ab23
+
 
 def get_db():
     if "db" not in g:
@@ -52,30 +43,28 @@ def get_db():
         g.db.row_factory = sqlite3.Row
     return g.db
 
+
 @app.teardown_appcontext
 def close_db(error):
     db = g.pop("db", None)
     if db is not None:
         db.close()
 
+
 @app.before_request
 def attach_db():
     get_db()
-<<<<<<< HEAD
 
-def init_database():
-    mbt_db = MBT()
-    mbt_db.creer_table()
-=======
->>>>>>> 5c60396f91d151ce1565d8305ec5e09e4ee4ab23
 
 def email_valide(email):
     pattern = r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"
     return re.match(pattern, email)
 
+
 @app.route("/")
 def home():
     return "API Multi Blind Test opérationnelle 🚀"
+
 
 @app.route("/register", methods=["POST", "OPTIONS"])
 def register():
@@ -143,7 +132,7 @@ def login():
             "message": "Connexion réussie",
             "token": token,
             "user_id": user_id,
-            "username": name
+            "username": name,
         }), 200
 
     return jsonify({"error": "Identifiants invalides"}), 401
@@ -158,10 +147,6 @@ def logout():
     Authentification.logout(token)
     return jsonify({"message": "Déconnexion réussie"}), 200
 
-<<<<<<< HEAD
-=======
-
-
 
 @app.route("/settings", methods=["GET"])
 @token_required
@@ -170,51 +155,14 @@ def get_settings():
     return jsonify(settings), 200
 
 
-@app.route("/settings", methods=["PUT", "OPTIONS"])
+@app.route("/settings", methods=["PUT", "PATCH", "OPTIONS"])
 @token_required
 def update_settings():
     if request.method == "OPTIONS":
         return "", 200
->>>>>>> 5c60396f91d151ce1565d8305ec5e09e4ee4ab23
 
-@app.route("/levels", methods=["GET"])
-@token_required
-def get_levels():
-    db = get_db()
-    levels = Campagne.get_levels(db.cursor(), request.user_id)
-    return jsonify(levels)
-
-
-@app.route("/play/<int:level_id>", methods=["POST"])
-@token_required
-def play(level_id):
-    data = request.get_json()
-    guess = data.get("guess")
-
-    db = get_db()
-    result = Level.check_guess(db.cursor(), level_id, guess)
-    db.commit()
-
-    return jsonify({"result": result})
-
-
-@app.route("/end_game", methods=["POST"])
-@token_required
-def end_game():
     data = request.get_json()
 
-<<<<<<< HEAD
-    if not data:
-        return jsonify({"error": "JSON invalide"}), 400
-
-    required_fields = ["nb_music", "time_left", "lives_remaining", "campaign_id"]
-    for field in required_fields:
-        if field not in data or data[field] is None:
-            return jsonify({"error": f"Champ manquant : {field}"}), 400
-
-    db = get_db()
-
-=======
     try:
         settings = SettingsService.update_settings(request.user_id, data)
     except ValueError as e:
@@ -222,7 +170,7 @@ def end_game():
 
     return jsonify({
         "message": "Paramètres mis à jour avec succès",
-        "settings": settings
+        "settings": settings,
     }), 200
 
 
@@ -237,7 +185,7 @@ def get_levels():
 @app.route("/play/<int:level_id>", methods=["POST"])
 @token_required
 def play(level_id):
-    data = request.get_json()
+    data = request.get_json() or {}
     guess = data.get("guess")
 
     db = get_db()
@@ -252,23 +200,30 @@ def play(level_id):
 def end_game():
     data = request.get_json()
 
+    if not data:
+        return jsonify({"error": "JSON invalide"}), 400
+
+    required_fields = ["nb_music", "time_left", "lives_remaining", "campaign_id"]
+    for field in required_fields:
+        if field not in data or data[field] is None:
+            return jsonify({"error": f"Champ manquant : {field}"}), 400
+
     db = get_db()
 
->>>>>>> 5c60396f91d151ce1565d8305ec5e09e4ee4ab23
     result = Victory.calcul_score(
         db,
         user_id=request.user_id,
         nb_music=data.get("nb_music"),
         time_left=data.get("time_left"),
         lives_remaining=data.get("lives_remaining"),
-        campaign_id=data.get("campaign_id")
+        campaign_id=data.get("campaign_id"),
     )
 
     Victory.add_xp(db, request.user_id, 250)
-<<<<<<< HEAD
     db.commit()
 
     return jsonify(result), 200
+
 
 @app.route("/profile", methods=["GET"])
 @token_required
@@ -276,11 +231,14 @@ def get_profile():
     db = get_db()
     cursor = db.cursor()
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT id, uuid, name, nom, email, age
         FROM Users
         WHERE id = ? AND archive = 0
-    """, (request.user_id,))
+    """,
+        (request.user_id,),
+    )
 
     row = cursor.fetchone()
 
@@ -293,8 +251,9 @@ def get_profile():
         "name": row["name"],
         "nom": row["nom"],
         "email": row["email"],
-        "age": row["age"]
+        "age": row["age"],
     }), 200
+
 
 @app.route("/profile", methods=["PATCH"])
 @token_required
@@ -311,7 +270,7 @@ def update_profile():
         "name": "name",
         "nom": "nom",
         "email": "email",
-        "age": "age"
+        "age": "age",
     }
 
     updates = []
@@ -332,7 +291,7 @@ def update_profile():
         values.append(request.user_id)
         cursor.execute(
             f"UPDATE Users SET {', '.join(updates)} WHERE id = ? AND archive = 0",
-            values
+            values,
         )
         db.commit()
 
@@ -343,71 +302,6 @@ def update_profile():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/settings", methods=["GET"])
-@token_required
-def get_settings():
-    db = get_db()
-    cursor = db.cursor()
-
-    cursor.execute("""
-        SELECT MainVolume, VolumeMusic, VolumeSFX, Language
-        FROM Settings
-        WHERE UserID = ?
-    """, (request.user_id,))
-
-    row = cursor.fetchone()
-
-    if not row:
-        return jsonify({"error": "Settings introuvables"}), 404
-
-    return jsonify({
-        "main_volume": row["MainVolume"],
-        "volume_music": row["VolumeMusic"],
-        "volume_sfx": row["VolumeSFX"],
-        "language": row["Language"]
-    }), 200
-
-@app.route("/settings", methods=["PATCH"])
-@token_required
-def update_settings():
-    data = request.get_json()
-
-    if not data:
-        return jsonify({"error": "JSON invalide"}), 400
-
-    db = get_db()
-    cursor = db.cursor()
-
-    allowed_fields = {
-        "main_volume": "MainVolume",
-        "volume_music": "VolumeMusic",
-        "volume_sfx": "VolumeSFX",
-        "language": "Language"
-    }
-
-    updates = []
-    values = []
-
-    for key, db_field in allowed_fields.items():
-        if key in data:
-            updates.append(f"{db_field} = ?")
-            values.append(data[key])
-
-    if not updates:
-        return jsonify({"error": "Aucune donnée autorisée à mettre à jour"}), 400
-
-    try:
-        values.append(request.user_id)
-        cursor.execute(
-            f"UPDATE Settings SET {', '.join(updates)} WHERE UserID = ?",
-            values
-        )
-        db.commit()
-
-        return jsonify({"message": "Settings mises à jour avec succès"}), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 @app.route("/subscription", methods=["GET"])
 @token_required
@@ -418,7 +312,7 @@ def get_subscription():
         return jsonify({
             "has_subscription": False,
             "plan": "free",
-            "status": "none"
+            "status": "none",
         }), 200
 
     is_active = SubscriptionService.has_active_subscription(request.user_id)
@@ -430,39 +324,40 @@ def get_subscription():
         "start_date": subscription["start_date"],
         "end_date": subscription["end_date"],
         "auto_renew": bool(subscription["auto_renew"]),
-        "provider": subscription["provider"]
+        "provider": subscription["provider"],
     }), 200
 
-if __name__ == "__main__":
-    init_database()
-=======
-    return jsonify(result)
 
 @app.route("/levels/create", methods=["POST"])
 @token_required
 def create_level():
-    data = request.get_json()
+    data = request.get_json() or {}
     title = data.get("title")
     artist_tag = data.get("artist_tag", "")
     theme = data.get("theme", "NEON_PINK")
+
     if not title:
         return jsonify({"error": "Le titre est requis"}), 400
 
     level_id = LevelCreatorService.create_level(request.user_id, title, artist_tag, theme)
     return jsonify({"message": "Level créé", "level_id": level_id}), 201
 
+
 @app.route("/levels/<int:level_id>/tracks", methods=["POST"])
 @token_required
 def add_track(level_id):
-    data = request.get_json()
+    data = request.get_json() or {}
     media_url = data.get("media_url")
     start_point = data.get("start_point", 0.0)
     duration = data.get("duration", 10.0)
     difficulty = data.get("difficulty", 1)
+
     if not media_url:
         return jsonify({"error": "URL du média requise"}), 400
+
     LevelCreatorService.add_track(level_id, media_url, start_point, duration, difficulty)
     return jsonify({"message": "Track ajouté"}), 201
+
 
 @app.route("/levels/mine", methods=["GET"])
 @token_required
@@ -470,13 +365,13 @@ def list_my_levels():
     levels = LevelCreatorService.list_user_levels(request.user_id)
     return jsonify(levels)
 
+
 @app.route("/levels/<int:level_id>", methods=["GET"])
 @token_required
-def get_level(level_id):
+def get_user_level(level_id):
     level = LevelCreatorService.get_level(level_id)
     return jsonify(level)
 
 
 if __name__ == "__main__":
->>>>>>> 5c60396f91d151ce1565d8305ec5e09e4ee4ab23
     app.run(host="0.0.0.0", port=5000, debug=True)
