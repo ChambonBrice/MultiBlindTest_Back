@@ -17,6 +17,7 @@ from MultiBlindTest_Back.Library.leaderboard import leaderboard_bp
 from MultiBlindTest_Back.Library.campagne import Campagne
 from MultiBlindTest_Back.Library.level import Level
 from MultiBlindTest_Back.Library.victory import Victory
+<<<<<<< HEAD
 from MultiBlindTest_Back.controllers.tracks_controller import tracks_bp
 from MultiBlindTest_Back.controllers.clips_controller import clips_bp
 from MultiBlindTest_Back.Flask.auth_utils import token_required
@@ -24,6 +25,13 @@ from MultiBlindTest_Back.Library.subscription import SubscriptionService
 from MultiBlindTest_Back.controllers.rooms_controller import rooms_bp
 from MultiBlindTest_Back.controllers.rounds_controller import rounds_bp
 from bdd.MBT import MBT
+=======
+from MultiBlindTest_Back.Library.settings import SettingsService
+from MultiBlindTest_Back.controllers.tracks_controller import tracks_bp
+from MultiBlindTest_Back.controllers.clips_controller import clips_bp
+from MultiBlindTest_Back.Library.level_creator import LevelCreatorService
+from MultiBlindTest_Back.Flask.auth_utils import token_required
+>>>>>>> 5c60396f91d151ce1565d8305ec5e09e4ee4ab23
 
 app = Flask(__name__)
 CORS(app)
@@ -31,8 +39,11 @@ CORS(app)
 app.register_blueprint(leaderboard_bp)
 app.register_blueprint(tracks_bp)
 app.register_blueprint(clips_bp)
+<<<<<<< HEAD
 app.register_blueprint(rooms_bp)
 app.register_blueprint(rounds_bp)
+=======
+>>>>>>> 5c60396f91d151ce1565d8305ec5e09e4ee4ab23
 
 def get_db():
     if "db" not in g:
@@ -50,10 +61,13 @@ def close_db(error):
 @app.before_request
 def attach_db():
     get_db()
+<<<<<<< HEAD
 
 def init_database():
     mbt_db = MBT()
     mbt_db.creer_table()
+=======
+>>>>>>> 5c60396f91d151ce1565d8305ec5e09e4ee4ab23
 
 def email_valide(email):
     pattern = r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"
@@ -144,6 +158,24 @@ def logout():
     Authentification.logout(token)
     return jsonify({"message": "Déconnexion réussie"}), 200
 
+<<<<<<< HEAD
+=======
+
+
+
+@app.route("/settings", methods=["GET"])
+@token_required
+def get_settings():
+    settings = SettingsService.get_settings(request.user_id)
+    return jsonify(settings), 200
+
+
+@app.route("/settings", methods=["PUT", "OPTIONS"])
+@token_required
+def update_settings():
+    if request.method == "OPTIONS":
+        return "", 200
+>>>>>>> 5c60396f91d151ce1565d8305ec5e09e4ee4ab23
 
 @app.route("/levels", methods=["GET"])
 @token_required
@@ -171,6 +203,7 @@ def play(level_id):
 def end_game():
     data = request.get_json()
 
+<<<<<<< HEAD
     if not data:
         return jsonify({"error": "JSON invalide"}), 400
 
@@ -181,6 +214,47 @@ def end_game():
 
     db = get_db()
 
+=======
+    try:
+        settings = SettingsService.update_settings(request.user_id, data)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    return jsonify({
+        "message": "Paramètres mis à jour avec succès",
+        "settings": settings
+    }), 200
+
+
+@app.route("/levels", methods=["GET"])
+@token_required
+def get_levels():
+    db = get_db()
+    levels = Campagne.get_levels(db.cursor(), request.user_id)
+    return jsonify(levels)
+
+
+@app.route("/play/<int:level_id>", methods=["POST"])
+@token_required
+def play(level_id):
+    data = request.get_json()
+    guess = data.get("guess")
+
+    db = get_db()
+    result = Level.check_guess(db.cursor(), level_id, guess)
+    db.commit()
+
+    return jsonify({"result": result})
+
+
+@app.route("/end_game", methods=["POST"])
+@token_required
+def end_game():
+    data = request.get_json()
+
+    db = get_db()
+
+>>>>>>> 5c60396f91d151ce1565d8305ec5e09e4ee4ab23
     result = Victory.calcul_score(
         db,
         user_id=request.user_id,
@@ -191,6 +265,7 @@ def end_game():
     )
 
     Victory.add_xp(db, request.user_id, 250)
+<<<<<<< HEAD
     db.commit()
 
     return jsonify(result), 200
@@ -360,4 +435,48 @@ def get_subscription():
 
 if __name__ == "__main__":
     init_database()
+=======
+    return jsonify(result)
+
+@app.route("/levels/create", methods=["POST"])
+@token_required
+def create_level():
+    data = request.get_json()
+    title = data.get("title")
+    artist_tag = data.get("artist_tag", "")
+    theme = data.get("theme", "NEON_PINK")
+    if not title:
+        return jsonify({"error": "Le titre est requis"}), 400
+
+    level_id = LevelCreatorService.create_level(request.user_id, title, artist_tag, theme)
+    return jsonify({"message": "Level créé", "level_id": level_id}), 201
+
+@app.route("/levels/<int:level_id>/tracks", methods=["POST"])
+@token_required
+def add_track(level_id):
+    data = request.get_json()
+    media_url = data.get("media_url")
+    start_point = data.get("start_point", 0.0)
+    duration = data.get("duration", 10.0)
+    difficulty = data.get("difficulty", 1)
+    if not media_url:
+        return jsonify({"error": "URL du média requise"}), 400
+    LevelCreatorService.add_track(level_id, media_url, start_point, duration, difficulty)
+    return jsonify({"message": "Track ajouté"}), 201
+
+@app.route("/levels/mine", methods=["GET"])
+@token_required
+def list_my_levels():
+    levels = LevelCreatorService.list_user_levels(request.user_id)
+    return jsonify(levels)
+
+@app.route("/levels/<int:level_id>", methods=["GET"])
+@token_required
+def get_level(level_id):
+    level = LevelCreatorService.get_level(level_id)
+    return jsonify(level)
+
+
+if __name__ == "__main__":
+>>>>>>> 5c60396f91d151ce1565d8305ec5e09e4ee4ab23
     app.run(host="0.0.0.0", port=5000, debug=True)

@@ -2,6 +2,7 @@ class Campagne:
 
     @staticmethod
     def get_levels(db, user_id):
+<<<<<<< HEAD
         campagne_id = 1
 
         query = """
@@ -13,6 +14,20 @@ class Campagne:
               AND le.user_id = ?
             ORDER BY cl.ID ASC
         """
+=======
+
+        campagne_id = 1
+
+        query = """
+                SELECT l.ID, l.LevelName, l.Difficulty, l.nb_music, le.etat
+                FROM CampaignLevels cl
+                JOIN Levels l ON l.ID = cl.LevelID
+                JOIN Levels_Etat le ON l.ID = le.level_id
+                WHERE cl.CampaignID = ?
+                AND le.user_id = ?
+                ORDER BY cl.ID ASC 
+                """
+>>>>>>> 5c60396f91d151ce1565d8305ec5e09e4ee4ab23
 
         db.execute(query, (campagne_id, user_id))
         results = db.fetchall()
@@ -27,6 +42,7 @@ class Campagne:
 
     @staticmethod
     def complete_level(db, user_id, level_id):
+<<<<<<< HEAD
         db.execute("""
             UPDATE Levels_Etat
             SET etat = 'completed'
@@ -39,6 +55,21 @@ class Campagne:
             FROM CampaignLevels cl
             WHERE cl.LevelsID = ?
         """, (level_id,))
+=======
+
+        db.execute("""
+                   UPDATE Levels_Etat
+                   SET etat = 'completed'
+                   WHERE user_id = ?
+                     AND level_id = ?
+                   """, (user_id, level_id))
+
+        db.execute("""
+                   SELECT cl.ID
+                   FROM CampaignLevels cl
+                   WHERE cl.LevelID = ?
+                   """, (level_id,))
+>>>>>>> 5c60396f91d151ce1565d8305ec5e09e4ee4ab23
         current = db.fetchone()
 
         if not current:
@@ -47,14 +78,22 @@ class Campagne:
         next_id = current["ID"] + 1
 
         db.execute("""
+<<<<<<< HEAD
             SELECT LevelsID
             FROM CampaignLevels
             WHERE ID = ?
         """, (next_id,))
+=======
+                   SELECT LevelID
+                   FROM CampaignLevels
+                   WHERE ID = ?
+                   """, (next_id,))
+>>>>>>> 5c60396f91d151ce1565d8305ec5e09e4ee4ab23
         next_level = db.fetchone()
 
         if next_level:
             db.execute("""
+<<<<<<< HEAD
                 UPDATE Levels_Etat
                 SET etat = 'unlocked'
                 WHERE user_id = ?
@@ -72,6 +111,26 @@ class Campagne:
             WHERE cl.CampaignID = ?
             ORDER BY cl.ID ASC
         """, (campagne_id,))
+=======
+                       UPDATE Levels_Etat
+                       SET etat = 'unlocked'
+                       WHERE user_id = ?
+                         AND level_id = ?
+                       """, (user_id, next_level["LevelID"]))
+
+    @staticmethod
+    def init_user_levels(db, user_id):
+
+        campagne_id = 1
+
+        db.execute("""
+                   SELECT l.ID
+                   FROM CampaignLevels cl
+                   JOIN Levels l ON l.ID = cl.LevelID
+                   WHERE cl.CampaignID = ?
+                   ORDER BY cl.LevelID ASC
+                   """, (campagne_id,))
+>>>>>>> 5c60396f91d151ce1565d8305ec5e09e4ee4ab23
 
         levels = db.fetchall()
 
@@ -79,6 +138,7 @@ class Campagne:
             etat = "unlocked" if i == 0 else "locked"
 
             db.execute("""
+<<<<<<< HEAD
                 INSERT OR IGNORE INTO Levels_Etat (user_id, level_id, etat)
                 VALUES (?, ?, ?)
             """, (user_id, level["ID"], etat))
@@ -92,6 +152,23 @@ class Campagne:
             WHERE l.ID = ?
               AND le.user_id = ?
         """, (level_id, user_id))
+=======
+                       INSERT
+                       OR IGNORE INTO Levels_Etat (user_id, level_id, etat)
+                VALUES (?, ?, ?)
+                       """, (user_id, level["ID"], etat))
+
+    @staticmethod
+    def get_level_detail(db, user_id, level_id):
+
+        db.execute("""
+                   SELECT l.ID, l.LevelName, l.Difficulty, l.timer, l.lives, l.hint, le.etat
+                   FROM Levels l
+                            JOIN Levels_Etat le ON l.ID = le.level_id
+                   WHERE l.ID = ?
+                     AND le.user_id = ?
+                   """, (level_id, user_id))
+>>>>>>> 5c60396f91d151ce1565d8305ec5e09e4ee4ab23
 
         row = db.fetchone()
 
@@ -99,10 +176,17 @@ class Campagne:
             return None
 
         db.execute("""
+<<<<<<< HEAD
             SELECT ID, Name, PATH
             FROM Music
             WHERE LevelsID = ?
         """, (level_id,))
+=======
+                   SELECT ID, Name, PATH
+                   FROM Music
+                   WHERE LevelID = ?
+                   """, (level_id,))
+>>>>>>> 5c60396f91d151ce1565d8305ec5e09e4ee4ab23
 
         tracks = db.fetchall()
 
@@ -122,6 +206,7 @@ class Campagne:
 
     @staticmethod
     def get_music(db, level_id):
+<<<<<<< HEAD
         db.execute("""
             SELECT ID
             FROM Music
@@ -129,4 +214,13 @@ class Campagne:
         """, (level_id,))
 
         rows = db.fetchall()
+=======
+
+        db.execute("""
+                   SELECT ID FROM Music WHERE LevelID = ?
+                   """, (level_id,))
+
+        rows = db.fetchall()
+
+>>>>>>> 5c60396f91d151ce1565d8305ec5e09e4ee4ab23
         return [row["ID"] for row in rows]
