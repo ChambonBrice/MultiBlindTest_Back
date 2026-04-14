@@ -1,9 +1,4 @@
-import sqlite3
-import os
-
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-DB_PATH = os.path.join(BASE_DIR, "bdd")
-DB_NAME = os.path.join(DB_PATH, "MBT.db")
+from MultiBlindTest_Back.Library.bdd_client import execute_sql
 
 
 class SettingsService:
@@ -15,21 +10,10 @@ class SettingsService:
     }
 
     @staticmethod
-    def get_connection():
-        os.makedirs(DB_PATH, exist_ok=True)
-        conn = sqlite3.connect(DB_NAME)
-        conn.row_factory = sqlite3.Row
-        return conn
-
-    @staticmethod
-    def ensure_user_settings(conn, user_id):
-        SettingsService.ensure_table(conn)
-        cursor = conn.cursor()
-        cursor.execute("SELECT 1 FROM Settings WHERE UserID = ?", (user_id,))
-        exists = cursor.fetchone()
-
-        if not exists:
-            cursor.execute(
+    def ensure_user_settings(user_id):
+        payload = execute_sql("SELECT 1 as ok FROM Settings WHERE UserID = ? LIMIT 1", (user_id,))
+        if not payload.get("rows"):
+            execute_sql(
                 """
                 INSERT INTO Settings (MainVolume, VolumeMusic, VolumeSFX, Language, UserID)
                 VALUES (?, ?, ?, ?, ?)
@@ -42,7 +26,6 @@ class SettingsService:
                     user_id,
                 ),
             )
-            conn.commit()
 
     @staticmethod
     def serialize(row):
@@ -57,21 +40,17 @@ class SettingsService:
 
     @staticmethod
     def get_settings(user_id):
-        conn = SettingsService.get_connection()
-        try:
-            SettingsService.ensure_user_settings(conn, user_id)
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT MainVolume, VolumeMusic, VolumeSFX, Language
-                FROM Settings
-                WHERE UserID = ?
-                """,
-                (user_id,),
-            )
-            return SettingsService.serialize(cursor.fetchone())
-        finally:
-            conn.close()
+        SettingsService.ensure_user_settings(user_id)
+        payload = execute_sql(
+            """
+            SELECT MainVolume, VolumeMusic, VolumeSFX, Language
+            FROM Settings
+            WHERE UserID = ?
+            """,
+            (user_id,),
+        )
+        rows = payload.get("rows", [])
+        return SettingsService.serialize(rows[0] if rows else None)
 
     @staticmethod
     def normalize_payload(data):
@@ -79,7 +58,6 @@ class SettingsService:
             raise ValueError("JSON invalide")
 
         normalized = {}
-
         volume_fields = {
             "mainVolume": ["mainVolume", "MainVolume"],
             "volumeMusic": ["volumeMusic", "VolumeMusic"],
@@ -120,39 +98,21 @@ class SettingsService:
     @staticmethod
     def update_settings(user_id, data):
         normalized = SettingsService.normalize_payload(data)
-        conn = SettingsService.get_connection()
-        try:
-            SettingsService.ensure_user_settings(conn, user_id)
-            cursor = conn.cursor()
+        SettingsService.ensure_user_settings(user_id)
 
-            set_clauses = []
-            values = []
-            mapping = {
-                "mainVolume": "MainVolume",
-                "volumeMusic": "VolumeMusic",
-                "volumeSFX": "VolumeSFX",
-                "language": "Language",
-            }
+        set_clauses = []
+        values = []
+        mapping = {
+            "mainVolume": "MainVolume",
+            "volumeMusic": "VolumeMusic",
+            "volumeSFX": "VolumeSFX",
+            "language": "Language",
+        }
 
-            for key, value in normalized.items():
-                set_clauses.append(f"{mapping[key]} = ?")
-                values.append(value)
+        for key, value in normalized.items():
+            set_clauses.append(f"{mapping[key]} = ?")
+            values.append(value)
 
-            values.append(user_id)
-            cursor.execute(
-                f"UPDATE Settings SET {', '.join(set_clauses)} WHERE UserID = ?",
-                tuple(values),
-            )
-            conn.commit()
-
-            cursor.execute(
-                """
-                SELECT MainVolume, VolumeMusic, VolumeSFX, Language
-                FROM Settings
-                WHERE UserID = ?
-                """,
-                (user_id,),
-            )
-            return SettingsService.serialize(cursor.fetchone())
-        finally:
-            conn.close()
+        values.append(user_id)
+        execute_sql(f"UPDATE Settings SET {', '.join(set_clauses)} WHERE UserID = ?", tuple(values))
+        return SettingsService.get_settings(user_id)
