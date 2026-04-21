@@ -1,65 +1,41 @@
-class Level:
+from MultiBlindTest_Back.Library.bdd_client import execute_sql
 
+
+class Level:
     @staticmethod
-    def get_lives(db, user_id, level_id):
-        db.execute("""
+    def get_lives(user_id, level_id):
+        payload = execute_sql(
+            """
             SELECT l.lives
             FROM Levels l
             JOIN Levels_Etat le ON le.level_id = l.ID
             WHERE le.user_id = ? AND l.ID = ?
-        """, (user_id, level_id))
-
-        row = db.fetchone()
-        return row["lives"] if row else None
-
-    @staticmethod
-    def get_tracks(db, level_id):
-        db.execute("""
-            SELECT ID, Name, PATH
-            FROM Music
-            WHERE LevelsID = ?
-        """, (level_id,))
-
-        return [
-            {"id": row["ID"], "name": row["Name"], "path": row["PATH"]}
-            for row in db.fetchall()
-        ]
+            """,
+            (user_id, level_id),
+        )
+        rows = payload.get('rows', [])
+        return rows[0]['lives'] if rows else None
 
     @staticmethod
-    def check_guess(db, level_id, guess):
-        db.execute("""
-            SELECT *
-            FROM FoundTracks
-            WHERE session_id = ? AND track_name = ?
-        """, (level_id, guess.lower().strip()))
-
-        if db.fetchone():
-            return "already_found"
-
-        db.execute("""
-            SELECT Name
-            FROM Music
-            WHERE LevelsID = ?
-        """, (level_id,))
-
-        tracks = [row["Name"].lower() for row in db.fetchall()]
-
-        if guess.lower().strip() in tracks:
-            db.execute("""
-                INSERT INTO FoundTracks (session_id, track_name)
-                VALUES (?, ?)
-            """, (level_id, guess.lower().strip()))
-            return "correct"
-
-        return "wrong"
+    def get_tracks(level_id):
+        payload = execute_sql('SELECT ID, Name, PATH FROM Music WHERE LevelsID = ?', (level_id,))
+        return [{'id': r['ID'], 'name': r['Name'], 'path': r['PATH']} for r in payload.get('rows', [])]
 
     @staticmethod
-    def get_hint(db, level_id):
-        db.execute("""
-            SELECT hint
-            FROM Levels
-            WHERE ID = ?
-        """, (level_id,))
+    def check_guess(level_id, guess):
+        normalized = (guess or '').lower().strip()
+        found = execute_sql('SELECT * FROM FoundTracks WHERE session_id = ? AND track_name = ?', (level_id, normalized))
+        if found.get('rows'):
+            return 'already_found'
+        tracks_payload = execute_sql('SELECT Name FROM Music WHERE LevelsID = ?', (level_id,))
+        tracks = [row['Name'].lower() for row in tracks_payload.get('rows', [])]
+        if normalized in tracks:
+            execute_sql('INSERT INTO FoundTracks (session_id, track_name) VALUES (?, ?)', (level_id, normalized))
+            return 'correct'
+        return 'wrong'
 
-        row = db.fetchone()
-        return row["hint"] if row else None
+    @staticmethod
+    def get_hint(level_id):
+        payload = execute_sql('SELECT hint FROM Levels WHERE ID = ?', (level_id,))
+        rows = payload.get('rows', [])
+        return rows[0]['hint'] if rows else None

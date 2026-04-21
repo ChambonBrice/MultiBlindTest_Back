@@ -1,3 +1,4 @@
+
 from functools import wraps
 from flask import request, jsonify
 from MultiBlindTest_Back.Library.Authentification import Authentification
@@ -17,7 +18,7 @@ def token_required(f):
         except IndexError:
             return jsonify({"error": "Token invalide"}), 401
 
-        payload = verify_token(token)
+        payload = verify_token(token, expected_type="access")
 
         if not payload:
             return jsonify({"error": "Token expiré ou invalide"}), 401
@@ -26,6 +27,7 @@ def token_required(f):
             return jsonify({"error": "Token révoqué"}), 401
 
         request.user_id = payload.get("user_id")
+        request.username = payload.get("username")
         return f(*args, **kwargs)
 
     return decorated

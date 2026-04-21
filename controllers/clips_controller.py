@@ -1,14 +1,15 @@
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify
 from MultiBlindTest_Back.Library.clips import Clip
 from MultiBlindTest_Back.Library.tracks import Track
 from MultiBlindTest_Back.services.audio_service import AudioService
 from MultiBlindTest_Back.Flask.auth_utils import token_required
+from MultiBlindTest_Back.Library.bdd_client import get_db_session
 
 clips_bp = Blueprint("clips", __name__, url_prefix="/clips")
 
 
 def get_db():
-    return g.db
+    return get_db_session()
 
 
 @clips_bp.route("/track/<track_id>", methods=["POST"])

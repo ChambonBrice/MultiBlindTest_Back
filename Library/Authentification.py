@@ -1,126 +1,91 @@
+
 import base64
 import bcrypt
-import uuid
 
-from MultiBlindTest_Back.Library.bdd_client import BDDAPIError, execute_sql
+from MultiBlindTest_Back.Library.bdd_client import BDDAPIError, get_json, post_json
 
 
 token_blacklist = set()
 
 
 class Authentification:
-
     @staticmethod
-    def get_user_id(name):
-        payload = execute_sql(
-            "SELECT id FROM Users WHERE name = ? AND archive = 0 LIMIT 1",
-            (name,),
-        )
-        rows = payload.get("rows", [])
-        if rows:
-            return rows[0]["id"]
+    def get_user_id(name=None, email=None):
+        users = get_json('/mbt/users')
+        if not isinstance(users, list):
+            return None
+        for user in users:
+            if name and user.get('name') == name:
+                return user.get('id') or user.get('ID')
+            if email and user.get('email') == email:
+                return user.get('id') or user.get('ID')
         return None
 
     @staticmethod
     def hash_password(password):
-        password_bytes = password.encode("utf-8")
+        password_bytes = password.encode('utf-8')
         salt = bcrypt.gensalt()
         hashed = bcrypt.hashpw(password_bytes, salt)
-        return base64.b64encode(hashed).decode("utf-8")
+        return base64.b64encode(hashed).decode('utf-8')
 
     @staticmethod
-    def register(name, email, password):
+    def register(name, email, password, nom=None, age=18):
         hashed_password = Authentification.hash_password(password)
-        user_uuid = str(uuid.uuid4())
-
-        try:
-            payload = execute_sql(
-                """
-                INSERT INTO Users (uuid, archive, name, nom, email, age, pwd)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (user_uuid, 0, name, name, email, 18, hashed_password),
-            )
-            user_id = payload.get("lastrowid")
-            if not user_id:
-                user_id = Authentification.get_user_id(name)
-
-            execute_sql(
-                "INSERT INTO Profils (XP, Level, Status, Stats, UserID) VALUES (0, 1, 'New', 0, ?)",
-                (user_id,),
-            )
-            execute_sql("INSERT INTO Rank (UserID, Points) VALUES (?, 0)", (user_id,))
-            execute_sql(
-                "INSERT INTO Settings (MainVolume, VolumeMusic, VolumeSFX, Language, UserID) VALUES (100, 100, 100, 'FR', ?)",
-                (user_id,),
-            )
-            return True
-        except BDDAPIError as e:
-            raise e
+        payload = post_json('/mbt/register', {
+            'name': name,
+            'nom': nom or name,
+            'email': email,
+            'age': age,
+            'pwd': hashed_password,
+        })
+        user_id = Authentification.get_user_id(name=name, email=email)
+        return {
+            'success': True,
+            'user_id': user_id,
+            'uuid': payload.get('uuid')
+        }
 
     @staticmethod
     def login(name, password):
-        payload = execute_sql(
-            "SELECT pwd FROM Users WHERE name = ? AND archive = 0 LIMIT 1",
-            (name,),
-        )
-        rows = payload.get("rows", [])
-        if rows:
-            stored_password_base64 = rows[0]["pwd"]
-            stored_password_bytes = base64.b64decode(stored_password_base64)
-            return bcrypt.checkpw(password.encode("utf-8"), stored_password_bytes)
-        return False
+        return post_json('/mbt/login', {
+            'name': name,
+            'password': password,
+        })
 
     @staticmethod
     def logout(token):
-        global token_blacklist
         token_blacklist.add(token)
         return True
 
     @staticmethod
     def token_is_blacklisted(token):
-        global token_blacklist
         return token in token_blacklist
 
     @staticmethod
     def get_connection():
-        raise RuntimeError("Le back ne doit plus ouvrir SQLite directement. Utilise bdd_client.")
+        raise RuntimeError('Le back ne doit plus ouvrir SQLite directement. Utilise bdd_client.')
 
     @staticmethod
     def get_global_leaderboard(limit):
-        payload = execute_sql(
-            """
-            SELECT u.name, p.Level, r.Points
-            FROM Users u
-            JOIN Profils p ON u.id = p.UserID
-            JOIN Rank r ON u.id = r.UserID
-            ORDER BY r.Points DESC LIMIT ?
-            """,
-            (limit,),
-        )
-        return [
-            {"name": row["name"], "level": row["Level"], "points": row["Points"]}
-            for row in payload.get("rows", [])
-        ]
+        rows = get_json('/mbt/leaderboard')
+        rows = rows if isinstance(rows, list) else []
+        out = []
+        for row in rows[:limit]:
+            out.append({
+                'name': row.get('name'),
+                'level': 1,
+                'points': row.get('points', 0),
+            })
+        return out
 
     @staticmethod
     def get_local_leaderboard(country, limit=100):
-        payload = execute_sql(
-            """
-            SELECT u.name, r.Points
-            FROM Users u
-            JOIN Rank r ON u.id = r.UserID
-            WHERE u.country = ?
-            ORDER BY r.Points DESC LIMIT ?
-            """,
-            (country, limit),
-        )
-        return [{"name": row["name"], "points": row["Points"]} for row in payload.get("rows", [])]
+        return []
 
     @staticmethod
     def add_points(name, points):
-        user_id = Authentification.get_user_id(name)
+        user_id = Authentification.get_user_id(name=name)
         if not user_id:
             return False
-        execute_sql("UPDATE Rank SET Points = Points + ? WHERE UserID = ?", (points, user_id))
+        post_json('/mbt/add/Rank', {'Userid': user_id, 'Points': int(points)})
         return True

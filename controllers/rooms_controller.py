@@ -1,12 +1,14 @@
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify
 from MultiBlindTest_Back.Flask.auth_utils import token_required
+from MultiBlindTest_Back.Library.bdd_client import get_db_session
 from MultiBlindTest_Back.services.game_service import GameService
+from MultiBlindTest_Back.Library.bdd_client import get_db_session
 
 rooms_bp = Blueprint("rooms", __name__, url_prefix="/rooms")
 
 
 def get_db():
-    return g.db
+    return get_db_session()
 
 
 @rooms_bp.route("", methods=["POST"])

@@ -1,56 +1,95 @@
 import os
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable
 
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+BDD_API_URL = os.getenv("BDD_API_URL", "http://127.0.0.1:5000")
+BDD_SERVICE_TOKEN = os.getenv("BDD_SERVICE_TOKEN")
 
 
 class BDDAPIError(Exception):
     pass
 
 
-class RemoteRow(dict):
-    def __getitem__(self, key):
-        if isinstance(key, int):
-            return list(self.values())[key]
-        return super().__getitem__(key)
+def _headers() -> dict[str, str]:
+    headers = {"Content-Type": "application/json"}
+    if BDD_SERVICE_TOKEN:
+        headers["Authorization"] = f"Bearer {BDD_SERVICE_TOKEN}"
+    return headers
+
+
+def _handle_response(response: requests.Response) -> Any:
+    try:
+        payload = response.json()
+    except Exception:
+        payload = response.text
+
+    if response.status_code >= 400:
+        raise BDDAPIError(f"{response.status_code} - {payload}")
+    return payload
+
+
+def get_json(path: str):
+    url = f"{BDD_API_URL}{path}"
+    response = requests.get(url, headers=_headers(), timeout=120)
+    return _handle_response(response)
+
+
+def post_json(path: str, data: Any):
+    url = f"{BDD_API_URL}{path}"
+    response = requests.post(url, json=data, headers=_headers(), timeout=120)
+    return _handle_response(response)
+
+
+def patch_json(path: str, data: Any):
+    url = f"{BDD_API_URL}{path}"
+    response = requests.patch(url, json=data, headers=_headers(), timeout=120)
+    return _handle_response(response)
+
+
+def delete_json(path: str):
+    url = f"{BDD_API_URL}{path}"
+    response = requests.delete(url, headers=_headers(), timeout=120)
+    return _handle_response(response)
+
+
+def execute_sql(query: str, params: Iterable[Any] | None = None):
+    return post_json('/mbt/sql/execute', {
+        'query': query,
+        'params': list(params or []),
+    })
+
+
+def execute_script(script: str):
+    return post_json('/mbt/sql/script', {'script': script})
 
 
 class RemoteCursor:
-    def __init__(self, session: "RemoteDBSession"):
-        self.session = session
+    def __init__(self):
         self._rows = []
-        self._rowcount = 0
         self.lastrowid = None
+        self.rowcount = 0
 
-    def execute(self, query: str, params: Optional[Iterable[Any]] = None):
-        payload = self.session.execute(query, params=params)
-        rows = payload.get("rows") or []
-        self._rows = [RemoteRow(r) for r in rows]
-        self._rowcount = payload.get("rowcount", 0)
-        self.lastrowid = payload.get("lastrowid")
+    def execute(self, query: str, params: Iterable[Any] | None = None):
+        payload = execute_sql(query, params or [])
+        self._rows = payload.get('rows', [])
+        self.lastrowid = payload.get('lastrowid')
+        self.rowcount = payload.get('rowcount', 0)
         return self
-
-    @property
-    def rowcount(self):
-        return self._rowcount
 
     def fetchone(self):
         return self._rows[0] if self._rows else None
 
     def fetchall(self):
-        return self._rows
+        return list(self._rows)
 
 
-class RemoteDBSession:
-    def __init__(self):
-        self._last_cursor = None
-
+class RemoteDBSession(RemoteCursor):
     def cursor(self):
-        self._last_cursor = RemoteCursor(self)
-        return self._last_cursor
-
-    def execute(self, query: str, params: Optional[Iterable[Any]] = None):
-        return execute_sql(query, params=params)
+        return self
 
     def commit(self):
         return None
@@ -59,48 +98,5 @@ class RemoteDBSession:
         return None
 
 
-def _base_url() -> str:
-    return os.getenv("BDD_API_URL", "http://127.0.0.1:5001").rstrip("/")
-
-
-def _headers() -> dict[str, str]:
-    token = os.getenv("BDD_SERVICE_TOKEN", "")
-    headers = {"Content-Type": "application/json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    return headers
-
-
-def _handle_response(response: requests.Response) -> dict[str, Any]:
-    try:
-        payload = response.json()
-    except ValueError:
-        payload = {"error": response.text}
-
-    if response.status_code >= 400:
-        raise BDDAPIError(payload.get("error") or payload.get("erreur") or f"Erreur BDD API ({response.status_code})")
-    return payload
-
-
-def execute_sql(query: str, params: Optional[Iterable[Any]] = None) -> dict[str, Any]:
-    response = requests.post(
-        f"{_base_url()}/mbt/sql/execute",
-        headers=_headers(),
-        json={"query": query, "params": list(params or [])},
-        timeout=10,
-    )
-    return _handle_response(response)
-
-
-def execute_script(script: str) -> dict[str, Any]:
-    response = requests.post(
-        f"{_base_url()}/mbt/sql/script",
-        headers=_headers(),
-        json={"script": script},
-        timeout=10,
-    )
-    return _handle_response(response)
-
-
-def get_db_session() -> RemoteDBSession:
+def get_db_session():
     return RemoteDBSession()
