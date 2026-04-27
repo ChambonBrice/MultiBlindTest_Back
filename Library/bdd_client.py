@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BDD_API_URL = os.getenv("BDD_API_URL", "http://127.0.0.1:5000")
+BDD_API_URL = os.getenv("BDD_API_URL", "http://127.0.0.1:5001")
 BDD_SERVICE_TOKEN = os.getenv("BDD_SERVICE_TOKEN")
 
 

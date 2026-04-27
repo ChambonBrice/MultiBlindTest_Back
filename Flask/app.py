@@ -107,10 +107,11 @@ def mbt_register():
     try:
         result = Authentification.register(name=name, email=email, password=password, nom=nom, age=age)
         return jsonify({'message': 'Utilisateur créé avec succès', 'user_id': result.get('user_id'), 'uuid': result.get('uuid')}), 201
-    except BDDAPIError as e:
+    except Exception as e:
         msg = str(e).lower()
         if 'unique' in msg or 'déjà' in msg or 'already' in msg:
             return jsonify({'error': 'Username ou email déjà utilisé'}), 400
+        print(e)
         return jsonify({'error': str(e)}), 502
 
 @app.route('/mbt/login', methods=['POST', 'OPTIONS'])
@@ -456,4 +457,4 @@ def get_user_level(level_or_public_id):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
