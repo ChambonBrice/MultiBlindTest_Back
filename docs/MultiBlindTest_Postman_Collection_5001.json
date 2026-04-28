@@ -1,0 +1,555 @@
+{
+  "info": {
+    "name": "MultiBlindTest - Back x BDD routes",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:5001"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "level_id",
+      "value": "1"
+    },
+    {
+      "key": "campaign_id",
+      "value": "1"
+    },
+    {
+      "key": "user_id",
+      "value": "1"
+    },
+    {
+      "key": "track_id",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/routes/health",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "routes",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Mapping Back BDD",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/routes/links",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "routes",
+            "links"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Register",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"testuser\",\n  \"nom\": \"Test\",\n  \"email\": \"test@example.com\",\n  \"password\": \"Password123\",\n  \"age\": 18\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/register",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "register"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"testuser\",\n  \"password\": \"Password123\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/mbt/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "mbt",
+            "login"
+          ]
+        },
+        "description": "Après le login, copie le token reçu dans la variable token."
+      }
+    },
+    {
+      "name": "Campaign levels",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/campaign/levels?campaign_id={{campaign_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "campaign",
+            "levels"
+          ],
+          "query": [
+            {
+              "key": "campaign_id",
+              "value": "{{campaign_id}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Campaign level detail",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/campaign/levels/{{level_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "campaign",
+            "levels",
+            "{{level_id}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Complete campaign level",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": 1,\n  \"score\": 9000,\n  \"stars\": 3\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/campaign/levels/{{level_id}}/complete",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "campaign",
+            "levels",
+            "{{level_id}}",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Start game",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": 1,\n  \"campaign_id\": 1\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/levels/{{level_id}}/start",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "levels",
+            "{{level_id}}",
+            "start"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Game state",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/levels/{{level_id}}/game-state?user_id={{user_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "levels",
+            "{{level_id}}",
+            "game-state"
+          ],
+          "query": [
+            {
+              "key": "user_id",
+              "value": "{{user_id}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Answer",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": 1,\n  \"track_id\": 1,\n  \"answer\": \"Titre musique\",\n  \"guess\": \"Titre musique\",\n  \"time_left\": 42\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/levels/{{level_id}}/answer",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "levels",
+            "{{level_id}}",
+            "answer"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Hint",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": 1,\n  \"track_id\": 1\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/levels/{{level_id}}/hint",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "levels",
+            "{{level_id}}",
+            "hint"
+          ]
+        }
+      }
+    },
+    {
+      "name": "End game",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": 1,\n  \"campaign_id\": 1,\n  \"time_left\": 20\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/levels/{{level_id}}/end-game",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "levels",
+            "{{level_id}}",
+            "end-game"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create creator level",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": 1,\n  \"title\": \"Mon Blind Test\",\n  \"name\": \"Mon Blind Test\",\n  \"description\": \"Niveau cr\\u00e9\\u00e9 depuis Postman\",\n  \"artist_tag\": \"Pop\",\n  \"theme\": \"NEON_PINK\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/creator/levels",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "creator",
+            "levels"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get my creator levels",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/creator/levels?user_id={{user_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "creator",
+            "levels"
+          ],
+          "query": [
+            {
+              "key": "user_id",
+              "value": "{{user_id}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get creator level detail",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/creator/levels/{{level_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "creator",
+            "levels",
+            "{{level_id}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Add YouTube track",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"youtube_url\": \"https://www.youtube.com/watch?v=test\",\n  \"start_point\": 30,\n  \"duration\": 15,\n  \"difficulty\": \"easy\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/creator/levels/{{level_id}}/tracks",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "creator",
+            "levels",
+            "{{level_id}}",
+            "tracks"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create track",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Titre musique\",\n  \"artist\": \"Artiste\",\n  \"youtube_url\": \"https://www.youtube.com/watch?v=test\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/tracks",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tracks"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Search tracks",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tracks/search?q=test",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tracks",
+            "search"
+          ],
+          "query": [
+            {
+              "key": "q",
+              "value": "test"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create clip from track",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start_point\": 30,\n  \"duration\": 15,\n  \"difficulty\": \"easy\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/clips/track/{{track_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "clips",
+            "track",
+            "{{track_id}}"
+          ]
+        }
+      }
+    }
+  ]
+}

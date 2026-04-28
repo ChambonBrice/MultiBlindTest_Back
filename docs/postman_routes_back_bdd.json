@@ -1,0 +1,186 @@
+{
+  "info": {
+    "name": "MultiBlindTest - Back x BDD routes",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:5001"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "level_id",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "Mapping Back <-> BDD",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/routes/links"
+      }
+    },
+    {
+      "name": "Register",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"testuser\",\n  \"nom\": \"Test\",\n  \"email\": \"test@example.com\",\n  \"password\": \"Password123\",\n  \"age\": 18\n}"
+        },
+        "url": "{{base_url}}/register"
+      }
+    },
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"testuser\",\n  \"password\": \"Password123\"\n}"
+        },
+        "url": "{{base_url}}/mbt/login"
+      }
+    },
+    {
+      "name": "Campaign levels",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": "{{base_url}}/campaign/levels?campaign_id=1"
+      }
+    },
+    {
+      "name": "Start game",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"campaign_id\": 1\n}"
+        },
+        "url": "{{base_url}}/levels/{{level_id}}/start"
+      }
+    },
+    {
+      "name": "Game state",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": "{{base_url}}/levels/{{level_id}}/game-state"
+      }
+    },
+    {
+      "name": "Answer",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"guess\": \"Titre musique\",\n  \"time_left\": 42\n}"
+        },
+        "url": "{{base_url}}/levels/{{level_id}}/answer"
+      }
+    },
+    {
+      "name": "Hint",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": "{{base_url}}/levels/{{level_id}}/hint"
+      }
+    },
+    {
+      "name": "End game",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"campaign_id\": 1,\n  \"time_left\": 20\n}"
+        },
+        "url": "{{base_url}}/levels/{{level_id}}/end-game"
+      }
+    },
+    {
+      "name": "Create creator level",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Mon Blind Test\",\n  \"artist_tag\": \"Pop\",\n  \"theme\": \"NEON_PINK\"\n}"
+        },
+        "url": "{{base_url}}/creator/levels"
+      }
+    }
+  ]
+}
